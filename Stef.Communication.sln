@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28010.2050
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stef.Communication", "Stef.Communication\Stef.Communication.csproj", "{68B74685-2AE3-4EA7-B32E-A9DB9B6D4663}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stef.Communication.Test", "Stef.Communication.Test\Stef.Communication.Test.csproj", "{FAC6D2E0-19A0-43D6-BDAF-2C4A9D1AFBC9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{68B74685-2AE3-4EA7-B32E-A9DB9B6D4663}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{68B74685-2AE3-4EA7-B32E-A9DB9B6D4663}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{68B74685-2AE3-4EA7-B32E-A9DB9B6D4663}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{68B74685-2AE3-4EA7-B32E-A9DB9B6D4663}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FAC6D2E0-19A0-43D6-BDAF-2C4A9D1AFBC9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FAC6D2E0-19A0-43D6-BDAF-2C4A9D1AFBC9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FAC6D2E0-19A0-43D6-BDAF-2C4A9D1AFBC9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FAC6D2E0-19A0-43D6-BDAF-2C4A9D1AFBC9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {45AEA94E-2162-4C00-A579-9306E13EA568}
+	EndGlobalSection
+EndGlobal
