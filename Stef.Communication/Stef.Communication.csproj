@@ -6,6 +6,7 @@
     <Authors>Stefan Heim</Authors>
     <Company>None</Company>
     <PackageLicenseUrl>https://de.wikipedia.org/wiki/MIT-Lizenz</PackageLicenseUrl>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
