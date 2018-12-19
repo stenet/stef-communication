@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -16,8 +17,8 @@ namespace Stef.Communication.Test
         {
             //InitByteServer();
             //InitEventServer();
-            InitDuplexServer();
-            //InitFileServer();
+            //InitDuplexServer();
+            InitFileServer();
         }
 
         public static void InitByteServer()
@@ -104,7 +105,6 @@ namespace Stef.Communication.Test
             eventServer.Start();
 
             var eventClient1 = new EventClient();
-            eventClient1.TypeResolverFunc = (typeName) => Type.GetType(typeName);
             eventClient1.Connect();
             eventClient1.PublishEvent += (s, a) =>
             {
@@ -112,7 +112,6 @@ namespace Stef.Communication.Test
             };
 
             var eventClient2 = new EventClient();
-            eventClient2.TypeResolverFunc = (typeName) => Type.GetType(typeName);
             eventClient2.Connect();
             eventClient2.PublishEvent += (s, a) =>
             {
@@ -139,32 +138,57 @@ namespace Stef.Communication.Test
         public static void InitDuplexServer()
         {
             var server = new DuplexServer();
-            server.MessageTypeResolverFunc = (typeName) => Type.GetType(typeName);
+            server.RegisterMessageType<CustomEventData, object>(e =>
+            {
+                Console.WriteLine(string.Concat("Server: ", e.FirstName));
+                return "OK from Server";
+            });
+            server.RegisterMessageType<string, object>(e =>
+            {
+                Console.WriteLine(string.Concat("Server: ", e));
+                return "OK from Server";
+            });
             server.Start();
 
-            var client = new SampleDuplexClient();
-            client.MessageTypeResolverFunc = (typeName) => Type.GetType(typeName);
+            var client = new DuplexClient();
+            client.RegisterMessageType<CustomEventData, object>(e =>
+            {
+                Console.WriteLine(string.Concat("Client: ", e.FirstName));
+                return "OK from Client";
+            });
+            client.RegisterMessageType<string, object>(e =>
+            {
+                Console.WriteLine(string.Concat("Client: ", e));
+                return "OK from Client";
+            });
             client.Connect();
 
             while (true)
             {
                 var watch = new Stopwatch();
-
                 watch.Start();
-                Console.WriteLine(client.HowMany(3).Result);
 
-                Console.WriteLine(client.TellMe(new CustomEventData()
+                var r1 = client.Send<CustomEventData, object>(new CustomEventData()
                 {
                     FirstName = "Stefan",
                     LastName = "Heim",
-                    Data = File.ReadAllBytes(@"c:\temp\Ferialerinformation_2017.pdf")
-                }).Result);
+                    Data = File.ReadAllBytes(@"c:\temp\Aktueller Mandant.pdf")
+                });
+                Console.WriteLine(string.Concat("Server response: ", r1));
 
-                Console.WriteLine(client.TellMe2(new CustomEventData()
+                var r3 = client.Send<string, object>("Das ist ein Test");
+                Console.WriteLine(string.Concat("Server response: ", r3));
+
+                var r2 = server.Send<CustomEventData, object>(new CustomEventData()
                 {
                     FirstName = "Stefan",
-                    LastName = "Heim"
-                }).Result);
+                    LastName = "Heim",
+                    Data = File.ReadAllBytes(@"c:\temp\Aktueller Mandant.pdf")
+                });
+                Console.WriteLine(string.Concat("Client response: ", r2));
+
+                var r4 = server.Send<string, object>("Das ist ein Test");
+                Console.WriteLine(string.Concat("Server response: ", r4));
 
                 watch.Stop();
                 Console.WriteLine(string.Concat(watch.ElapsedMilliseconds, "ms"));
@@ -194,9 +218,14 @@ namespace Stef.Communication.Test
         }
         private static void ExecuteMultipleActions()
         {
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            var taskList = new List<Task>();
+
             for (int i = 0; i < 10; i++)
             {
-                Task.Factory.StartNew(() =>
+                taskList.Add(Task.Factory.StartNew(() =>
                 {
                     var client = new FileClient();
                     client.Connect();
@@ -206,15 +235,20 @@ namespace Stef.Communication.Test
                         RequestFile(client);
                         SaveFile(client);
                     }
-                });
+                }));
             }
+
+            Task.WaitAll(taskList.ToArray());
+            stopwatch.Stop();
+
+            Console.WriteLine(string.Concat("Total ", stopwatch.ElapsedMilliseconds, "ms"));
         }
         private static void RequestFile(FileClient client)
         {
             var stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            var fileName = @"c:\temp\Ferialerinformation_2017.pdf";
+            var fileName = @"c:\temp\Aktueller Mandant.pdf";
             var data = client.GetFile(fileName);
             //var fileData = client.GetFile(@"c:\temp\test.bmp");
 
@@ -240,7 +274,7 @@ namespace Stef.Communication.Test
             var stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            var fileName = @"c:\temp\Ferialerinformation_2017.pdf";
+            var fileName = @"c:\temp\Aktueller Mandant.pdf";
 
             client.SaveFile(
                 @"c:\temp\c\" + Guid.NewGuid().ToString() + Path.GetExtension(fileName),

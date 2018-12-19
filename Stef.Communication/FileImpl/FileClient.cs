@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using Stef.Communication.Base;
 
 namespace Stef.Communication.FileImpl
@@ -32,15 +31,13 @@ namespace Stef.Communication.FileImpl
             if (timeout == null)
                 timeout = TimeSpan.FromSeconds(30);
 
-            var request = new FileRequest()
+            var request = new FileEvalRequest()
             {
                 MessageId = Guid.NewGuid(),
                 Key = key
             };
 
-            var json = JsonConvert.SerializeObject(request);
-            var bytes = Encoding.UTF8.GetBytes(json);
-            var bytesLength = BitConverter.GetBytes(bytes.Length);
+            var bytes = SerializeManager.Current.Serialize(request);
 
             var waitItem = new FileWaitItem(request.MessageId);
             lock (_Sync)
@@ -49,14 +46,7 @@ namespace Stef.Communication.FileImpl
             }
 
             AttachCompletionToWaitItem(waitItem, timeout.Value);
-
-            using (var stream = new MemoryStream())
-            {
-                stream.Write(bytesLength, 0, bytesLength.Length);
-                stream.Write(bytes, 0, bytes.Length);
-
-                SendData(stream.ToArray());
-            }
+            SendData(bytes);
 
             return waitItem.CompletionSource.Task;
         }
@@ -75,16 +65,14 @@ namespace Stef.Communication.FileImpl
             if (timeout == null)
                 timeout = TimeSpan.FromSeconds(30);
 
-            var request = new FileRequest()
+            var request = new FileSaveRequest()
             {
                 MessageId = Guid.NewGuid(),
                 Key = key,
-                Length = data.Length
+                Data = data
             };
 
-            var json = JsonConvert.SerializeObject(request);
-            var bytes = Encoding.UTF8.GetBytes(json);
-            var bytesLength = BitConverter.GetBytes(bytes.Length);
+            var bytes = SerializeManager.Current.Serialize(request);
 
             var waitItem = new FileWaitItem(request.MessageId);
             lock (_Sync)
@@ -93,15 +81,7 @@ namespace Stef.Communication.FileImpl
             }
 
             AttachCompletionToWaitItem(waitItem, timeout.Value);
-
-            using (var stream = new MemoryStream())
-            {
-                stream.Write(bytesLength, 0, bytesLength.Length);
-                stream.Write(bytes, 0, bytes.Length);
-                stream.Write(data, 0, data.Length);
-
-                SendData(stream.ToArray());
-            }
+            SendData(bytes);
 
             return waitItem.CompletionSource.Task;
         }
@@ -148,9 +128,7 @@ namespace Stef.Communication.FileImpl
         }
         private void ResolveResponse(byte[] data)
         {
-            var messageLength = BitConverter.ToInt32(data, 0);
-            var json = Encoding.UTF8.GetString(data, 4, messageLength);
-            var response = JsonConvert.DeserializeObject<FileResponse>(json);
+            var response = (FileRequestResponseBase)SerializeManager.Current.Deserialize(data);
 
             FileWaitItem waitItem;
             lock (_Sync)
@@ -159,20 +137,17 @@ namespace Stef.Communication.FileImpl
                     return;
             }
 
-            if (response.HasData)
+            if (response is FileEvalResponse fileEvalResponse)
             {
-                using (var stream = new MemoryStream())
-                {
-                    var pref = 4 + messageLength;
-                    var length = data.Length - pref;
-                    stream.Write(data, pref, length);
-
-                    waitItem.SetResult(stream.ToArray());
-                }
+                waitItem.SetResult(fileEvalResponse.Data);
+            }
+            else if (response is FileSaveResponse fileSaveResponse)
+            {
+                waitItem.SetResult(null);
             }
             else
             {
-                waitItem.SetResult(null);
+                //TODO Exception
             }
         }
     }

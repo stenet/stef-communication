@@ -5,43 +5,36 @@ using Stef.Communication.Base;
 
 namespace Stef.Communication.DuplexImpl
 {
-    public partial class DuplexClientBase : ClientBase
+    public class DuplexClient : ClientBase
     {
         private DuplexImpl _Impl;
 
-        public DuplexClientBase(string ip = null, int? port = null) : base(ip, port)
+        public DuplexClient(string ip = null, int? port = null) : base(ip, port)
         {
             _Impl = new DuplexImpl();
         }
 
         public TimeSpan ResponseTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
-        public Func<string, Type> MessageTypeResolverFunc
+        public void RegisterMessageType<T, K>(Predicate<T> predicate, Func<T, K> action)
         {
-            get
-            {
-                return _Impl.MessageTypeResolverFunc;
-            }
-            set
-            {
-
-                _Impl.MessageTypeResolverFunc = value;
-            }
+            _Impl.RegisterMessageType(predicate, action);
+        }
+        public void RegisterMessageType<T, K>(Func<T, K> action)
+        {
+            _Impl.RegisterMessageType((obj) => obj is T, action);
         }
 
-        public K SendDuplex<T, K>(string methodName, object parameter = null, TimeSpan? timeout = null)
-            where T : class
+        public K Send<T, K>(T message, TimeSpan? timeout = null)
         {
-            return SendDuplexAsync<T, K>(
-                methodName,
-                parameter: parameter,
+            return SendAsync<T, K>(
+                message,
                 timeout: timeout)
                 .Result;
         }
-        public Task<K> SendDuplexAsync<T, K>(string methodName, object parameter = null, TimeSpan? timeout = null)
-            where T : class
+        public Task<K> SendAsync<T, K>(T message, TimeSpan? timeout = null)
         {
-            return _Impl.SendDuplex<T, K>(SendData, methodName, parameter: parameter, timeout: timeout);
+            return _Impl.Send<T, K>(SendData, message, timeout: timeout);
         }
 
         protected override void OnDataReceived(Session session, byte[] data)

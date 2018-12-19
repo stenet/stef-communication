@@ -34,10 +34,9 @@ namespace Stef.Communication.Base
         protected byte[] QUIT_BYTES { get; } = new byte[0];
 
         public event EventHandler<SessionChangedEventArgs> Connected;
-
         public event EventHandler<SessionChangedEventArgs> Disconnected;
-
         public event EventHandler<DataReceivedEventArgs> DataReceived;
+        public event EventHandler<ExceptionEventArgs> Exception;
 
         protected void CheckAlive(Session session)
         {
@@ -119,6 +118,7 @@ namespace Stef.Communication.Base
                 if (session.TcpClient == null)
                     return;
 
+                Exception?.Invoke(this, new ExceptionEventArgs(exception));
                 OnDisconnected(session);
             }
         }

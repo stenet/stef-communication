@@ -12,6 +12,8 @@ namespace Stef.Communication.EventImpl
 
         protected override void OnDataReceived(Session session, byte[] data)
         {
+            //TODO - Erweitern um wer die Information bekommen soll
+            //zB ein spezieller Service oder einfach alle
             SessionList
                 .Where(c => c != session)
                 .ToList()

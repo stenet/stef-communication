@@ -7,7 +7,6 @@ namespace Stef.Communication.DuplexImpl
     {
         OK = 0,
         UnknownMethodType = 1,
-        Exception = 2,
-        ParameterMismatch = 3
+        Exception = 2
     }
 }

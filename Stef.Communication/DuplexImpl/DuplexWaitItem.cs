@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 
 namespace Stef.Communication.DuplexImpl
 {
@@ -15,7 +14,7 @@ namespace Stef.Communication.DuplexImpl
         public Guid MessageId { get; private set; }
         public Task CancelTask { get; set; }
 
-        public abstract void SetResult(string val);
+        public abstract void SetResult(byte[] data);
         public abstract void SetException(Exception ex);
     }
 
@@ -28,9 +27,9 @@ namespace Stef.Communication.DuplexImpl
 
         public TaskCompletionSource<K> CompletionSource { get; private set; }
 
-        public override void SetResult(string val)
+        public override void SetResult(byte[] data)
         {
-            var obj = JsonConvert.DeserializeObject<K>(val);
+            var obj = (K)SerializeManager.Current.Deserialize(data);
             CompletionSource.TrySetResult(obj);
         }
         public override void SetException(Exception ex)

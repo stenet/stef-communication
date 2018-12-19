@@ -4,29 +4,47 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 
 namespace Stef.Communication.DuplexImpl
 {
     internal class DuplexImpl
     {
-        public const string RequestMessageId = "__RequestMessageId";
-        public const string ResponseMessageId = "__ResponseMessageId";
-
         private object _Sync = new object();
         private Dictionary<Guid, DuplexWaitItem> _WaitDic;
         private Dictionary<string, object> _InstanceDic;
+
+        private List<DuplexMessageResolver> _MessageTypeResolveList;
 
         public DuplexImpl()
         {
             _WaitDic = new Dictionary<Guid, DuplexWaitItem>();
             _InstanceDic = new Dictionary<string, object>();
+            _MessageTypeResolveList = new List<DuplexMessageResolver>();
+        }
+
+        public void RegisterMessageType<T, K>(Predicate<T> predicate, Func<T, K> action)
+        {
+            Func<object, Action<object>, bool> func = (obj, responseAction) =>
+            {
+                if (!(obj is T))
+                    return false;
+
+                var t = (T)obj;
+
+                if (!predicate(t))
+                    return false;
+
+                var result = action(t);
+                responseAction(result);
+                return true;
+            };
+
+            _MessageTypeResolveList.Add(new DuplexMessageResolver(func));
         }
 
         public Func<string, Type> MessageTypeResolverFunc { get; set; }
 
-        public Task<K> SendDuplex<T, K>(Action<byte[]> sendData, string methodName, object parameter = null, TimeSpan? timeout = null)
-            where T : class
+        public Task<K> Send<T, K>(Action<byte[]> sendData, T message, TimeSpan? timeout = null)
         {
             if (timeout == null)
                 timeout = TimeSpan.FromSeconds(30);
@@ -34,15 +52,10 @@ namespace Stef.Communication.DuplexImpl
             var request = new DuplexRequest()
             {
                 MessageId = Guid.NewGuid(),
-                TypeName = typeof(T).FullName,
-                MethodName = methodName,
-                Parameter = parameter == null
-                    ? null
-                    : JsonConvert.SerializeObject(parameter)
+                Message = SerializeManager.Current.Serialize(message)
             };
 
-            var json = JsonConvert.SerializeObject(request);
-            var jsonBytes = Encoding.UTF8.GetBytes(json);
+            var bytes = SerializeManager.Current.Serialize(request);
 
             var waitItem = new DuplexWaitItem<K>(request.MessageId);
 
@@ -52,7 +65,7 @@ namespace Stef.Communication.DuplexImpl
             }
 
             AttachCompletionToWaitItem(waitItem, timeout.Value);
-            sendData(jsonBytes);
+            sendData(bytes);
 
             return waitItem.CompletionSource.Task;
         }
@@ -93,67 +106,50 @@ namespace Stef.Communication.DuplexImpl
 
         public void OnDataReceived(Action<byte[]> sendData, byte[] data)
         {
-            var json = Encoding.UTF8.GetString(data);
+            var received = SerializeManager.Current.Deserialize(data);
 
-            var isRequest = json.Contains(RequestMessageId);
-
-            if (isRequest)
-                CreateResponse(sendData, json);
+            if (received is DuplexRequest request)
+            {
+                CreateResponse(sendData, request);
+            }
+            else if (received is DuplexResponse response)
+            {
+                ResolveResponse(response);
+            }
             else
-                ResolveResponse(json);
+            {
+                //TODO Exception
+            }
         }
-        private void CreateResponse(Action<byte[]> sendData, string json)
+        private void CreateResponse(Action<byte[]> sendData, DuplexRequest request)
         {
-            var message = JsonConvert.DeserializeObject<DuplexRequest>(json);
-
             try
             {
-                var instance = GetMethodInstance(message.TypeName);
-                if (instance == null)
-                {
-                    SendUnknownTypeResponse(sendData, message);
-                    return;
-                }
+                var message = SerializeManager.Current.Deserialize(request.Message);
 
-                var method = instance.GetType().GetMethod(message.MethodName);
-                var parameter = new object[0];
-                if (!string.IsNullOrEmpty(message.Parameter))
+                Action<object> sendResponse = (obj) =>
                 {
-                    var parameters = method.GetParameters();
-                    if (parameters.Length != 1)
+                    var response = new DuplexResponse()
                     {
-                        SendParameterMismatch(sendData, message);
-                        return;
-                    }
+                        MessageId = request.MessageId,
+                        ResponseType = ResponseType.OK,
+                        Result = SerializeManager.Current.Serialize(obj)
+                    };
 
-                    var parameterType = parameters[0].ParameterType;
-                    var parameterData = JsonConvert.DeserializeObject(message.Parameter, parameterType);
-                    parameter = new object[1] { parameterData };
-                }
-                else
-                {
-                    var parameters = method.GetParameters();
-                    if (parameters.Length > 0)
-                    {
-                        SendParameterMismatch(sendData, message);
-                        return;
-                    }
-                }
-
-                var result = method.Invoke(instance, parameter);
-
-                var response = new DuplexResponse()
-                {
-                    MessageId = message.MessageId,
-                    ResponseType = ResponseType.OK,
-                    Result = JsonConvert.SerializeObject(result)
+                    SendResponse(sendData, response);
                 };
 
-                SendResponse(sendData, response);
+                var isHandled = _MessageTypeResolveList
+                    .Any(c => c.Handle(message, sendResponse));
+
+                if (isHandled)
+                    return;
+
+                SendUnknownTypeResponse(sendData, request);
             }
             catch (Exception ex)
             {
-                SendExceptionResponse(sendData, message, ex);
+                SendExceptionResponse(sendData, request, ex);
             }
         }
         private void SendUnknownTypeResponse(Action<byte[]> sendData, DuplexRequest message)
@@ -166,61 +162,24 @@ namespace Stef.Communication.DuplexImpl
 
             SendResponse(sendData, response);
         }
-        private void SendParameterMismatch(Action<byte[]> sendData, DuplexRequest message)
-        {
-            var response = new DuplexResponse()
-            {
-                MessageId = message.MessageId,
-                ResponseType = ResponseType.ParameterMismatch
-            };
-
-            SendResponse(sendData, response);
-        }
         private void SendExceptionResponse(Action<byte[]> sendData, DuplexRequest message, Exception ex)
         {
             var response = new DuplexResponse()
             {
                 MessageId = message.MessageId,
                 ResponseType = ResponseType.Exception,
-                Result = ex.Message
+                Result = SerializeManager.Current.Serialize(ex.Message)
             };
 
             SendResponse(sendData, response);
         }
         private void SendResponse(Action<byte[]> sendData, DuplexResponse response)
         {
-            var responseJson = JsonConvert.SerializeObject(response);
-            var responseBytes = Encoding.UTF8.GetBytes(responseJson);
-            sendData(responseBytes);
+            var bytes = SerializeManager.Current.Serialize(response);
+            sendData(bytes);
         }
-        private object GetMethodInstance(string typeName)
+        private void ResolveResponse(DuplexResponse response)
         {
-            object instance;
-
-            if (!_InstanceDic.TryGetValue(typeName, out instance))
-            {
-                lock (_Sync)
-                {
-                    if (!_InstanceDic.TryGetValue(typeName, out instance))
-                    {
-                        var type = MessageTypeResolverFunc == null
-                            ? Type.GetType(typeName)
-                            : MessageTypeResolverFunc(typeName);
-
-                        instance = type == null
-                            ? null
-                            : Activator.CreateInstance(type);
-                        _InstanceDic.Add(typeName, instance);
-                    }
-                }
-            }
-
-            return instance;
-        }
-        private void ResolveResponse(string json)
-        {
-            var response = JsonConvert.DeserializeObject<DuplexResponse>(json);
-
             DuplexWaitItem waitItem;
             lock (_Sync)
             {
@@ -237,10 +196,7 @@ namespace Stef.Communication.DuplexImpl
                     waitItem.SetException(new ApplicationException("unknown message type"));
                     break;
                 case ResponseType.Exception:
-                    waitItem.SetException(new ApplicationException(response.Result));
-                    break;
-                case ResponseType.ParameterMismatch:
-                    waitItem.SetException(new ApplicationException("parameter mismatch"));
+                    waitItem.SetException(new ApplicationException(SerializeManager.Current.Deserialize(response.Result)?.ToString()));
                     break;
             }
         }

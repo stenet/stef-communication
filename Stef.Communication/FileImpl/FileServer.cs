@@ -2,7 +2,6 @@
 using System.IO;
 using System.Linq;
 using System.Text;
-using Newtonsoft.Json;
 using Stef.Communication.Base;
 
 namespace Stef.Communication.FileImpl
@@ -25,72 +24,51 @@ namespace Stef.Communication.FileImpl
 
         private void ResolveRequest(Session session, byte[] data)
         {
-            var messageLength = BitConverter.ToInt32(data, 0);
-            var json = Encoding.UTF8.GetString(data, 4, messageLength);
-            var request = JsonConvert.DeserializeObject<FileRequest>(json);
+            var request = (FileRequestResponseBase)SerializeManager.Current.Deserialize(data);
 
-            if (request.Length == 0)
+            if (request is FileEvalRequest fileEvalRequest)
             {
-                EvalFileAndSend(session, request);
-                
+                EvalFileAndSend(session, fileEvalRequest);
+            }
+            else if (request is FileSaveRequest fileSaveRequest)
+            {
+                SaveFileAndSend(session, fileSaveRequest);
             }
             else
             {
-                using (var stream = new MemoryStream())
-                {
-                    var pref = 4 + messageLength;
-                    var length = data.Length - pref;
-                    stream.Write(data, pref, length);
-
-                    SaveFileAndSend(session, request, stream.ToArray());
-                }
+                //TODO Exception
             }
         }
-        private void EvalFileAndSend(Session session, FileRequest request)
+        private void EvalFileAndSend(Session session, FileEvalRequest request)
         {
             var evalFileEventArgs = new EvalFileEventArgs(request.Key);
             EvalFile?.Invoke(this, evalFileEventArgs);
 
-            SendResponse(session, request, evalFileEventArgs.Data);
+            var response = new FileEvalResponse()
+            {
+                MessageId = request.MessageId,
+                Data = evalFileEventArgs.Data
+            };
+
+            SendData(
+                session,
+                SerializeManager.Current.Serialize(response));
         }
-        private void SaveFileAndSend(Session session, FileRequest request, byte[] data)
+        private void SaveFileAndSend(Session session, FileSaveRequest request)
         {
             SaveFile?.Invoke(
                 this,
-                new SaveFileEventArgs(request.Key, data));
+                new SaveFileEventArgs(request.Key, request.Data));
 
-            SendResponse(session, request, null);
-        }
-        private void SendResponse(Session session, FileRequest request, byte[] data)
-        {
-            var hasFileData = data != null
-                && data.Length > 0;
 
-            var response = new FileResponse()
+            var response = new FileSaveResponse()
             {
-                MessageId = request.MessageId,
-                HasData = hasFileData
+                MessageId = request.MessageId
             };
 
-            var responseJson = JsonConvert.SerializeObject(response);
-            var responseBytes = Encoding.UTF8.GetBytes(responseJson);
-            var responseBytesLength = BitConverter.GetBytes(responseBytes.Length);
-
-            using (var stream = new MemoryStream())
-            {
-                stream.Write(responseBytesLength, 0, responseBytesLength.Length);
-                stream.Write(responseBytes, 0, responseBytes.Length);
-
-                if (hasFileData)
-                {
-                    stream.Write(
-                        data,
-                        0,
-                        data.Length);
-                }
-
-                SendData(session, stream.ToArray());
-            }
+            SendData(
+                session,
+                SerializeManager.Current.Serialize(response));
         }
     }
 }
