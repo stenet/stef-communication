@@ -7,17 +7,18 @@ namespace Stef.Communication.Base
 {
     public abstract class ClientBase : CommunicationBase
     {
-        private Session _Session;
         private bool _AutoReconnectOnError;
 
         public ClientBase(string ip = null, int? port = null)
             : base(ip, port)
         {
         }
+        
+        public Session Session { get; private set; }
 
         public void Connect(bool autoReconnectOnError = false)
         {
-            if (_Session != null)
+            if (Session != null)
                 throw new InvalidOperationException("Session already initialized");
 
             _AutoReconnectOnError = autoReconnectOnError;
@@ -25,9 +26,9 @@ namespace Stef.Communication.Base
             try
             {
                 var tcpClient = new TcpClient(IP, Port);
-                _Session = new Session(tcpClient);
+                Session = new Session(tcpClient);
 
-                OnConnected(_Session);
+                OnConnected(Session);
             }
             catch (Exception)
             {
@@ -43,26 +44,26 @@ namespace Stef.Communication.Base
         }
         public void Disconnect()
         {
-            if (_Session == null)
+            if (Session == null)
                 return;
 
             _AutoReconnectOnError = false;
             SendData(QUIT_BYTES);
-            OnDisconnected(_Session);
+            OnDisconnected(Session);
         }
 
         protected void SendData(byte[] data)
         {
-            if (_Session == null)
+            if (Session == null)
                 throw new InvalidOperationException("Session not initialized");
 
-            SendDataEx(_Session, data);
+            SendDataEx(Session, data);
         }
 
         protected override void OnDisconnected(Session session)
         {
             base.OnDisconnected(session);
-            _Session = null;
+            Session = null;
 
             if (_AutoReconnectOnError)
                 TryReconnect();
@@ -70,7 +71,7 @@ namespace Stef.Communication.Base
 
         private async void TryReconnect()
         {
-            if (_Session != null)
+            if (Session != null)
                 return;
 
             await Task.Delay(750);

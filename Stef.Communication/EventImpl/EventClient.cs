@@ -6,8 +6,13 @@ namespace Stef.Communication.EventImpl
 {
     public class EventClient : ClientBase
     {
-        public event EventHandler<PublishEventEventArgs> PublishEvent;
+        public EventClient(string ip = null, int? port = null) 
+            : base(ip, port)
+        {
+        }
 
+        public event EventHandler<PublishEventEventArgs> PublishEvent;
+        
         public void SendEvent<T>(T args)
             where T : class
         {
@@ -20,6 +25,10 @@ namespace Stef.Communication.EventImpl
             SendData(bytes);
         }
 
+        protected override void OnConnected(Session session)
+        {
+            base.OnConnected(session);
+        }
         protected override void OnDataReceived(Session session, byte[] data)
         {
             PublishEventData(data);

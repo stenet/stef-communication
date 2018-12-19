@@ -12,6 +12,8 @@ namespace Stef.Communication.FileImpl
         {
         }
 
+        public event EventHandler<InitEventArgs> Init;
+        public event EventHandler<DeleteFileEventArgs> DeleteFile;
         public event EventHandler<EvalFileEventArgs> EvalFile;
         public event EventHandler<SaveFileEventArgs> SaveFile;
 
@@ -33,6 +35,14 @@ namespace Stef.Communication.FileImpl
             else if (request is FileSaveRequest fileSaveRequest)
             {
                 SaveFileAndSend(session, fileSaveRequest);
+            }
+            else if (request is FileDeleteRequest fileDeleteRequest)
+            {
+                DeleteFileAndSend(session, fileDeleteRequest);
+            }
+            else if (request is FileInitRequest fileInitRequest)
+            {
+                InitAndSend(session, fileInitRequest);
             }
             else
             {
@@ -60,8 +70,37 @@ namespace Stef.Communication.FileImpl
                 this,
                 new SaveFileEventArgs(request.Key, request.Data));
 
-
             var response = new FileSaveResponse()
+            {
+                MessageId = request.MessageId
+            };
+
+            SendData(
+                session,
+                SerializeManager.Current.Serialize(response));
+        }
+        private void DeleteFileAndSend(Session session, FileDeleteRequest request)
+        {
+            DeleteFile?.Invoke(
+                this,
+                new DeleteFileEventArgs(request.Key));
+
+            var response = new FileDeleteResponse()
+            {
+                MessageId = request.MessageId
+            };
+
+            SendData(
+                session,
+                SerializeManager.Current.Serialize(response));
+        }
+        private void InitAndSend(Session session, FileInitRequest request)
+        {
+            Init?.Invoke(
+                this,
+                new InitEventArgs(request.Data));
+
+            var response = new FileInitResponse()
             {
                 MessageId = request.MessageId
             };

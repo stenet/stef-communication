@@ -19,6 +19,70 @@ namespace Stef.Communication.FileImpl
             _WaitDic = new Dictionary<Guid, FileWaitItem>();
         }
 
+        public void Init(object data, TimeSpan? timeout = null)
+        {
+            InitAsync(
+                data,
+                timeout: timeout)
+                .Wait();
+        }
+        public Task InitAsync(object data, TimeSpan? timeout = null)
+        {
+            if (timeout == null)
+                timeout = TimeSpan.FromSeconds(30);
+
+            var request = new FileInitRequest()
+            {
+                MessageId = Guid.NewGuid(),
+                Data = data
+            };
+
+            var bytes = SerializeManager.Current.Serialize(request);
+
+            var waitItem = new FileWaitItem(request.MessageId);
+            lock (_Sync)
+            {
+                _WaitDic.Add(waitItem.MessageId, waitItem);
+            }
+
+            AttachCompletionToWaitItem(waitItem, timeout.Value);
+            SendData(bytes);
+
+            return waitItem.CompletionSource.Task;
+        }
+
+        public void DeleteFile(string key, TimeSpan? timeout = null)
+        {
+            DeleteFileAsync(
+                key,
+                timeout: timeout)
+                .Wait();
+        }
+        public Task DeleteFileAsync(string key, TimeSpan? timeout = null)
+        {
+            if (timeout == null)
+                timeout = TimeSpan.FromSeconds(30);
+
+            var request = new FileDeleteRequest()
+            {
+                MessageId = Guid.NewGuid(),
+                Key = key
+            };
+
+            var bytes = SerializeManager.Current.Serialize(request);
+
+            var waitItem = new FileWaitItem(request.MessageId);
+            lock (_Sync)
+            {
+                _WaitDic.Add(waitItem.MessageId, waitItem);
+            }
+
+            AttachCompletionToWaitItem(waitItem, timeout.Value);
+            SendData(bytes);
+
+            return waitItem.CompletionSource.Task;
+        }
+
         public byte[] GetFile(string key, TimeSpan? timeout = null)
         {
             return GetFileAsync(
@@ -142,6 +206,14 @@ namespace Stef.Communication.FileImpl
                 waitItem.SetResult(fileEvalResponse.Data);
             }
             else if (response is FileSaveResponse fileSaveResponse)
+            {
+                waitItem.SetResult(null);
+            }
+            else if (response is FileDeleteResponse fileDeleteResponse)
+            {
+                waitItem.SetResult(null);
+            }
+            else if (response is FileInitResponse fileInitResponse)
             {
                 waitItem.SetResult(null);
             }
