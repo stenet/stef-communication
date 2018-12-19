@@ -70,8 +70,11 @@ namespace Stef.Communication.Base
             });            
         }
 
-        protected void SendDataEx(Session session, byte[] data)
+        protected internal void SendDataEx(Session session, byte[] data)
         {
+            if (session == null)
+                throw new InvalidOperationException("Session not initialized");
+
             var lengthBuffer = BitConverter.GetBytes(data.Length);
 
             try
@@ -111,14 +114,18 @@ namespace Stef.Communication.Base
             Disconnected?.Invoke(this, new SessionChangedEventArgs(session));
             session.Dispose();
         }
-        protected virtual void OnException(Session session, Exception exception)
+        protected internal virtual void OnException(Session session, Exception exception, bool disconnect = true)
         {
+            Exception?.Invoke(this, new ExceptionEventArgs(exception));
+
+            if (!disconnect)
+                return;
+
             lock (_ExceptionLock)
             {
                 if (session.TcpClient == null)
                     return;
 
-                Exception?.Invoke(this, new ExceptionEventArgs(exception));
                 OnDisconnected(session);
             }
         }

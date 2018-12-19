@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Stef.Communication.Base;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,21 +11,24 @@ namespace Stef.Communication.DuplexImpl
     internal class DuplexImpl
     {
         private object _Sync = new object();
+        private readonly CommunicationBase _CommunicationBase;
         private Dictionary<Guid, DuplexWaitItem> _WaitDic;
         private Dictionary<string, object> _InstanceDic;
 
-        private List<DuplexMessageResolver> _MessageTypeResolveList;
+        private List<DuplexMessageHandler> _MessageHandlerList;
 
-        public DuplexImpl()
+        public DuplexImpl(CommunicationBase communicationBase)
         {
             _WaitDic = new Dictionary<Guid, DuplexWaitItem>();
             _InstanceDic = new Dictionary<string, object>();
-            _MessageTypeResolveList = new List<DuplexMessageResolver>();
+            _MessageHandlerList = new List<DuplexMessageHandler>();
+
+            _CommunicationBase = communicationBase;
         }
 
-        public void RegisterMessageType<T, K>(Predicate<T> predicate, Func<T, K> action)
+        public void RegisterMessageHandler<T, K>(Predicate<T> predicate, Func<Session, T, K> action)
         {
-            Func<object, Action<object>, bool> func = (obj, responseAction) =>
+            Func<Session, object, Action<object>, bool> func = (session, obj, responseAction) =>
             {
                 if (!(obj is T))
                     return false;
@@ -34,17 +38,17 @@ namespace Stef.Communication.DuplexImpl
                 if (!predicate(t))
                     return false;
 
-                var result = action(t);
+                var result = action(session, t);
                 responseAction(result);
                 return true;
             };
 
-            _MessageTypeResolveList.Add(new DuplexMessageResolver(func));
+            _MessageHandlerList.Add(new DuplexMessageHandler(func));
         }
 
         public Func<string, Type> MessageTypeResolverFunc { get; set; }
 
-        public Task<K> Send<T, K>(Action<byte[]> sendData, T message, TimeSpan? timeout = null)
+        public Task<K> Send<T, K>(Session session, T message, TimeSpan? timeout = null, bool wait = true)
         {
             if (timeout == null)
                 timeout = TimeSpan.FromSeconds(30);
@@ -57,17 +61,25 @@ namespace Stef.Communication.DuplexImpl
 
             var bytes = SerializeManager.Current.Serialize(request);
 
-            var waitItem = new DuplexWaitItem<K>(request.MessageId);
-
-            lock (_Sync)
+            if (wait)
             {
-                _WaitDic.Add(waitItem.MessageId, waitItem);
+                var waitItem = new DuplexWaitItem<K>(request.MessageId);
+
+                lock (_Sync)
+                {
+                    _WaitDic.Add(waitItem.MessageId, waitItem);
+                }
+
+                AttachCompletionToWaitItem(waitItem, timeout.Value);
+                _CommunicationBase.SendDataEx(session, bytes);
+
+                return waitItem.CompletionSource.Task;
             }
-
-            AttachCompletionToWaitItem(waitItem, timeout.Value);
-            sendData(bytes);
-
-            return waitItem.CompletionSource.Task;
+            else
+            {
+                _CommunicationBase.SendDataEx(session, bytes);
+                return null;
+            }
         }
         private void AttachCompletionToWaitItem<K>(DuplexWaitItem<K> waitItem, TimeSpan timeout)
         {
@@ -104,13 +116,13 @@ namespace Stef.Communication.DuplexImpl
             });
         }
 
-        public void OnDataReceived(Action<byte[]> sendData, byte[] data)
+        public void OnDataReceived(Session session, byte[] data)
         {
             var received = SerializeManager.Current.Deserialize(data);
 
             if (received is DuplexRequest request)
             {
-                CreateResponse(sendData, request);
+                CreateResponse(session, request);
             }
             else if (received is DuplexResponse response)
             {
@@ -121,7 +133,8 @@ namespace Stef.Communication.DuplexImpl
                 //TODO Exception
             }
         }
-        private void CreateResponse(Action<byte[]> sendData, DuplexRequest request)
+
+        private void CreateResponse(Session session, DuplexRequest request)
         {
             try
             {
@@ -136,23 +149,23 @@ namespace Stef.Communication.DuplexImpl
                         Result = SerializeManager.Current.Serialize(obj)
                     };
 
-                    SendResponse(sendData, response);
+                    SendResponse(session, response);
                 };
 
-                var isHandled = _MessageTypeResolveList
-                    .Any(c => c.Handle(message, sendResponse));
+                var isHandled = _MessageHandlerList
+                    .Any(c => c.Handle(session, message, sendResponse));
 
                 if (isHandled)
                     return;
 
-                SendUnknownTypeResponse(sendData, request);
+                SendUnknownTypeResponse(session, request);
             }
             catch (Exception ex)
             {
-                SendExceptionResponse(sendData, request, ex);
+                SendExceptionResponse(session, request, ex);
             }
         }
-        private void SendUnknownTypeResponse(Action<byte[]> sendData, DuplexRequest message)
+        private void SendUnknownTypeResponse(Session session, DuplexRequest message)
         {
             var response = new DuplexResponse()
             {
@@ -160,24 +173,27 @@ namespace Stef.Communication.DuplexImpl
                 ResponseType = ResponseType.UnknownMethodType
             };
 
-            SendResponse(sendData, response);
+            SendResponse(session, response);
         }
-        private void SendExceptionResponse(Action<byte[]> sendData, DuplexRequest message, Exception ex)
+        private void SendExceptionResponse(Session session, DuplexRequest message, Exception ex)
         {
+            _CommunicationBase.OnException(session, ex, disconnect: false);
+
             var response = new DuplexResponse()
             {
                 MessageId = message.MessageId,
                 ResponseType = ResponseType.Exception,
-                Result = SerializeManager.Current.Serialize(ex.Message)
+                Exception = ex.Message
             };
 
-            SendResponse(sendData, response);
+            SendResponse(session, response);
         }
-        private void SendResponse(Action<byte[]> sendData, DuplexResponse response)
+        private void SendResponse(Session session, DuplexResponse response)
         {
             var bytes = SerializeManager.Current.Serialize(response);
-            sendData(bytes);
+            _CommunicationBase.SendDataEx(session, bytes);
         }
+
         private void ResolveResponse(DuplexResponse response)
         {
             DuplexWaitItem waitItem;
@@ -196,7 +212,7 @@ namespace Stef.Communication.DuplexImpl
                     waitItem.SetException(new ApplicationException("unknown message type"));
                     break;
                 case ResponseType.Exception:
-                    waitItem.SetException(new ApplicationException(SerializeManager.Current.Deserialize(response.Result)?.ToString()));
+                    waitItem.SetException(new ApplicationException(response.Exception));
                     break;
             }
         }

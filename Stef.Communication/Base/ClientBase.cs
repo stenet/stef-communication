@@ -54,9 +54,6 @@ namespace Stef.Communication.Base
 
         protected void SendData(byte[] data)
         {
-            if (Session == null)
-                throw new InvalidOperationException("Session not initialized");
-
             SendDataEx(Session, data);
         }
 

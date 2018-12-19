@@ -17,8 +17,8 @@ namespace Stef.Communication.Test
         {
             //InitByteServer();
             //InitEventServer();
-            //InitDuplexServer();
-            InitFileServer();
+            InitDuplexServer();
+            //InitFileServer();
         }
 
         public static void InitByteServer()
@@ -138,12 +138,12 @@ namespace Stef.Communication.Test
         public static void InitDuplexServer()
         {
             var server = new DuplexServer();
-            server.RegisterMessageType<CustomEventData, object>(e =>
+            server.RegisterMessageHandler<CustomEventData, string>((session, e) =>
             {
                 Console.WriteLine(string.Concat("Server: ", e.FirstName));
                 return "OK from Server";
             });
-            server.RegisterMessageType<string, object>(e =>
+            server.RegisterMessageHandler<string, string>((session, e) =>
             {
                 Console.WriteLine(string.Concat("Server: ", e));
                 return "OK from Server";
@@ -151,12 +151,12 @@ namespace Stef.Communication.Test
             server.Start();
 
             var client = new DuplexClient();
-            client.RegisterMessageType<CustomEventData, object>(e =>
+            client.RegisterMessageHandler<CustomEventData, string>((session, e) =>
             {
                 Console.WriteLine(string.Concat("Client: ", e.FirstName));
                 return "OK from Client";
             });
-            client.RegisterMessageType<string, object>(e =>
+            client.RegisterMessageHandler<string, string>((session, e) =>
             {
                 Console.WriteLine(string.Concat("Client: ", e));
                 return "OK from Client";
@@ -172,24 +172,22 @@ namespace Stef.Communication.Test
                 {
                     FirstName = "Stefan",
                     LastName = "Heim",
-                    Data = File.ReadAllBytes(@"c:\temp\Aktueller Mandant.pdf")
+                    //Data = File.ReadAllBytes(@"c:\temp\Aktueller Mandant.pdf")
                 });
                 Console.WriteLine(string.Concat("Server response: ", r1));
 
                 var r3 = client.Send<string, object>("Das ist ein Test");
                 Console.WriteLine(string.Concat("Server response: ", r3));
 
-                var r2 = server.Send<CustomEventData, object>(new CustomEventData()
+                server.Send(new CustomEventData()
                 {
                     FirstName = "Stefan",
                     LastName = "Heim",
-                    Data = File.ReadAllBytes(@"c:\temp\Aktueller Mandant.pdf")
+                    //Data = File.ReadAllBytes(@"c:\temp\Aktueller Mandant.pdf")
                 });
-                Console.WriteLine(string.Concat("Client response: ", r2));
 
-                var r4 = server.Send<string, object>("Das ist ein Test");
-                Console.WriteLine(string.Concat("Server response: ", r4));
-
+                server.Send("Das ist ein Test");
+                
                 watch.Stop();
                 Console.WriteLine(string.Concat(watch.ElapsedMilliseconds, "ms"));
 
