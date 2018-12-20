@@ -188,7 +188,15 @@ namespace Stef.Communication.Base
 
                     buffer = new byte[length];
                     memoryStream.Read(buffer, 0, length);
-                    OnDataReceived(session, buffer);
+
+                    try
+                    {
+                        OnDataReceived(session, buffer);
+                    }
+                    catch (Exception ex)
+                    {
+                        OnException(session, ex, disconnect: false);
+                    }
 
                     buffer = new byte[memoryStream.Length - 4 - length];
                     memoryStream.Read(buffer, 0, buffer.Length);

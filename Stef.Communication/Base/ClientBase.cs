@@ -35,7 +35,7 @@ namespace Stef.Communication.Base
             {
                 var tcpClient = new TcpClient(IP, Port);
                 Session = new Session(tcpClient);
-
+                
                 OnConnected(Session);
             }
             catch (Exception)
@@ -64,7 +64,6 @@ namespace Stef.Communication.Base
         {
             SendDataEx(Session, data);
         }
-
         protected override void OnDisconnected(Session session)
         {
             base.OnDisconnected(session);
@@ -73,7 +72,7 @@ namespace Stef.Communication.Base
             if (_AutoReconnectOnError)
                 TryReconnect();
         }
-
+        
         private async void TryReconnect()
         {
             if (Session != null)

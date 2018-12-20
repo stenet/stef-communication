@@ -128,6 +128,13 @@ namespace Stef.Communication.DuplexImpl
             {
                 ResolveResponse(response);
             }
+            else
+            {
+                _CommunicationBase.OnException(
+                    session,
+                    new ApplicationException("unknown request"),
+                    disconnect: false);
+            }
         }
 
         private void CreateResponse(Session session, DuplexRequest request)

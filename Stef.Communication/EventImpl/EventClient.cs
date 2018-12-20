@@ -14,7 +14,10 @@ namespace Stef.Communication.EventImpl
             : base(ip, port)
         {
             _GroupNameList = new List<string>();
+            Id = Guid.NewGuid();
         }
+
+        public Guid Id { get; private set; }
 
         public event EventHandler<PublishEventEventArgs> PublishEvent;
 
@@ -95,21 +98,44 @@ namespace Stef.Communication.EventImpl
         {
             base.OnConnected(session);
 
+            SendHelloServer();
+
             if (_GroupNameList.Any())
                 UpdateGroupNames();
         }
         protected override void OnDataReceived(Session session, byte[] data)
         {
-            PublishEventData(data);
+            var request = SerializeManager.Current.Deserialize(data);
+
+            if (request is EventRequest eventRequest)
+            {
+                PublishEventData(eventRequest.Data);
+            }
+            else
+            {
+                OnException(
+                    session,
+                    new ApplicationException("unknown request"),
+                    disconnect: false);
+            }
+
             base.OnDataReceived(session, data);
         }
 
         private void PublishEventData(byte[] data)
         {
-            var eventRequest = (EventRequest)SerializeManager.Current.Deserialize(data);
-            var args = SerializeManager.Current.Deserialize(eventRequest.Data);
-
+            var args = SerializeManager.Current.Deserialize(data);
             PublishEvent?.Invoke(this, new PublishEventEventArgs(args));
+        }
+        private void SendHelloServer()
+        {
+            var data = new EventHelloServerRequest()
+            {
+                IdClient = Id
+            };
+
+            var bytes = SerializeManager.Current.Serialize(data);
+            SendData(bytes);
         }
         private void UpdateGroupNames()
         {

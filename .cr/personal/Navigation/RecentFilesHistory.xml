@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Root Type="DevExpress.CodeRush.Foundation.Navigation.QuickFileNav.SolutionFileInfosContainer">
+  <Options Language="Neutral">
+    <Items>
+      <Item Id="{cdf826a3-7f55-4696-b0c2-348e1437eac6}">
+        <Filename>EventServer.cs</Filename>
+        <FilePath>f:\git\stef-communication\stef.communication\eventimpl\eventserver.cs</FilePath>
+        <Folders>
+          <Item>EventImpl</Item>
+        </Folders>
+        <ProjectFileName>F:\Git\stef-communication\Stef.Communication\Stef.Communication.csproj</ProjectFileName>
+        <ProjectName>Stef.Communication</ProjectName>
+      </Item>
+    </Items>
+  </Options>
+</Root>

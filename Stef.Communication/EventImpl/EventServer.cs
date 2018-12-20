@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Sockets;
 using Stef.Communication.Base;
 
 namespace Stef.Communication.EventImpl
@@ -17,20 +18,39 @@ namespace Stef.Communication.EventImpl
             _SessionGroupNameDic = new Dictionary<Guid, List<string>>();
         }
 
+        protected override Session CreateSession(TcpClient client)
+        {
+            return new EventSession(client);
+        }
+
         protected override void OnDataReceived(Session session, byte[] data)
         {
             var request = SerializeManager.Current.Deserialize(data);
 
-            if (request is EventRequest eventRequest)
+            if (request is EventHelloServerRequest eventHelloServerRequest)
+            {
+                var eventSession = (EventSession)session;
+                eventSession.Id = eventHelloServerRequest.IdClient;
+            }
+            else if (request is EventRequest eventRequest)
             {
                 ResendEvent(session, eventRequest, data);
             }
             else if (request is EventGroupNamesRequest eventGroupNamesRequest)
             {
+                var eventSession = (EventSession)session;
+
                 lock (_SyncLock)
                 {
-                    _SessionGroupNameDic[session.Id] = eventGroupNamesRequest.GroupNameList;
+                    _SessionGroupNameDic[eventSession.Id] = eventGroupNamesRequest.GroupNameList;
                 }
+            }
+            else
+            {
+                OnException(
+                    session,
+                    new ApplicationException("unkown request"),
+                    disconnect: false);
             }
 
             base.OnDataReceived(session, data);
@@ -38,10 +58,11 @@ namespace Stef.Communication.EventImpl
         protected override void OnDisconnected(Session session)
         {
             base.OnDisconnected(session);
-            
+
+            var eventSession = (EventSession)session;
             lock (_SyncLock)
             {
-                _SessionGroupNameDic.Remove(session.Id);
+                _SessionGroupNameDic.Remove(eventSession.Id);
             }
         }
 
@@ -88,11 +109,13 @@ namespace Stef.Communication.EventImpl
 
             foreach (var session in SessionList.ToList())
             {
+                var eventSession = (EventSession)session;
+
                 lock (_SyncLock)
                 {
-                    if (!_SessionGroupNameDic.ContainsKey(session.Id))
+                    if (!_SessionGroupNameDic.ContainsKey(eventSession.Id))
                         continue;
-                    if (!_SessionGroupNameDic[session.Id].Contains(request.GroupName))
+                    if (!_SessionGroupNameDic[eventSession.Id].Contains(request.GroupName))
                         continue;
                 }
 

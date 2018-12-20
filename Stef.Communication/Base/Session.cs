@@ -9,12 +9,10 @@ namespace Stef.Communication.Base
     {
         public Session(TcpClient client)
         {
-            Id = Guid.NewGuid();
             TcpClient = client;
             Stream = client.GetStream();
         }
-
-        public Guid Id { get; private set; }
+        
         public TcpClient TcpClient { get; private set; }
         public Stream Stream { get; private set; }
 

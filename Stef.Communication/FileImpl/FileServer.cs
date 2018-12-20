@@ -20,13 +20,22 @@ namespace Stef.Communication.FileImpl
         protected override void OnDataReceived(Session session, byte[] data)
         {
             ResolveRequest(session, data);
-
             base.OnDataReceived(session, data);
         }
 
         private void ResolveRequest(Session session, byte[] data)
         {
-            var request = (FileRequestResponseBase)SerializeManager.Current.Deserialize(data);
+            var request = SerializeManager.Current.Deserialize(data) as FileRequestResponseBase;
+
+            if (request == null)
+            {
+                OnException(
+                    session,
+                    new ApplicationException("unknown request"),
+                    disconnect: false);
+
+                return;
+            }
 
             if (request is FileEvalRequest fileEvalRequest)
             {
@@ -43,6 +52,13 @@ namespace Stef.Communication.FileImpl
             else if (request is FileInitRequest fileInitRequest)
             {
                 InitAndSend(session, fileInitRequest);
+            }
+            else
+            {
+                OnException(
+                    session,
+                    new ApplicationException("unknown FileRequest"),
+                    disconnect: false);
             }
         }
         private void EvalFileAndSend(Session session, FileEvalRequest request)

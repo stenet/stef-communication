@@ -52,6 +52,11 @@ namespace Stef.Communication.Base
             _Listener = null;
         }
 
+        protected virtual Session CreateSession(TcpClient client)
+        {
+            return new Session(client);
+        }
+
         protected void SendData(byte[] data)
         {
             foreach (var session in SessionList.ToList())
@@ -68,6 +73,7 @@ namespace Stef.Communication.Base
         {
             lock (_SyncLock)
             {
+
                 _SessionList.Add(session);
             }
 
@@ -90,7 +96,7 @@ namespace Stef.Communication.Base
                 try
                 {
                     var client = await _Listener.AcceptTcpClientAsync();
-                    var session = new Session(client);
+                    var session = CreateSession(client);
 
                     OnConnected(session);
                 }

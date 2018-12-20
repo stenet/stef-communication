@@ -169,7 +169,7 @@ namespace Stef.Communication.FileImpl
 
         protected override void OnDataReceived(Session session, byte[] data)
         {
-            ResolveResponse(data);
+            ResolveResponse(session, data);
             base.OnDataReceived(session, data);
         }
 
@@ -207,9 +207,18 @@ namespace Stef.Communication.FileImpl
                 clear();
             });
         }
-        private void ResolveResponse(byte[] data)
+        private void ResolveResponse(Session session, byte[] data)
         {
-            var response = (FileRequestResponseBase)SerializeManager.Current.Deserialize(data);
+            var response = SerializeManager.Current.Deserialize(data) as FileRequestResponseBase;
+            if (response == null)
+            {
+                OnException(
+                    session,
+                    new ApplicationException("unknown response"),
+                    disconnect: false);
+
+                return;
+            }
 
             FileWaitItem waitItem;
             lock (_Sync)
@@ -237,6 +246,13 @@ namespace Stef.Communication.FileImpl
             else if (response is FileInitResponse fileInitResponse)
             {
                 waitItem.SetResult(null);
+            }
+            else
+            {
+                OnException(
+                    session,
+                    new ApplicationException("unknown FileResponse"),
+                    disconnect: false);
             }
         }
     }
