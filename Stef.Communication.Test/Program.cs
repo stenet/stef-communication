@@ -16,8 +16,8 @@ namespace Stef.Communication.Test
         private static void Main(string[] args)
         {
             //InitByteServer();
-            //InitEventServer();
-            InitDuplexServer();
+            InitEventServer();
+            //InitDuplexServer();
             //InitFileServer();
         }
 
@@ -105,6 +105,7 @@ namespace Stef.Communication.Test
             eventServer.Start();
 
             var eventClient1 = new EventClient();
+            eventClient1.AddToGroup("Task", "Random");
             eventClient1.Connect();
             eventClient1.PublishEvent += (s, a) =>
             {
@@ -113,23 +114,42 @@ namespace Stef.Communication.Test
 
             var eventClient2 = new EventClient();
             eventClient2.Connect();
+            eventClient2.AddToGroup("Task");
             eventClient2.PublishEvent += (s, a) =>
             {
                 Console.WriteLine("CLIENT2: " + a.Arguments.ToString());
             };
 
+            var eventClient3 = new EventClient();
+            eventClient3.Connect();
+            eventClient3.AddToGroup("Task", "Random");
+            eventClient3.PublishEvent += (s, a) =>
+            {
+                Console.WriteLine("CLIENT3: " + a.Arguments.ToString());
+            };
+
             while (true)
             {
-                eventClient1.SendEvent(new CustomEventData()
+                eventClient1.SendEventToAll(new CustomEventData()
                 {
-                    FirstName = "A",
+                    FirstName = "Event to All",
                     LastName = "B"
                 });
-                eventClient1.SendEvent(new CustomEventData()
+                eventClient1.SendEventToOthers(new CustomEventData()
                 {
-                    FirstName = "C",
+                    FirstName = "Event To Others",
                     LastName = "D"
                 });
+                eventClient1.SendEventToAllInGroup(new CustomEventData()
+                {
+                    FirstName = "Event to all in Group Task",
+                    LastName = "D"
+                }, "Task");
+                eventClient1.SendEventToRandomInGroup(new CustomEventData()
+                {
+                    FirstName = "Event to random in Group Random",
+                    LastName = "D"
+                }, "Random");
 
                 Console.WriteLine("Message sent");
                 Console.ReadLine();

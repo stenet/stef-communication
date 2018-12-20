@@ -14,6 +14,14 @@ namespace Stef.Communication.Base
         {
         }
         
+        public bool IsConnected
+        {
+            get
+            {
+                return Session != null
+                    && Session.TcpClient != null;
+            }
+        }
         public Session Session { get; private set; }
 
         public void Connect(bool autoReconnectOnError = false)

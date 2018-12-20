@@ -10,6 +10,8 @@ namespace Stef.Communication.EventImpl
         {
         }
 
+        public EventRecipientType RecipientType { get; set; }
+        public string GroupName { get; set; }
         public byte[] Data { get; set; }
     }
 }

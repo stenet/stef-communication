@@ -8,6 +8,7 @@ namespace Stef.Communication.Base
 {
     public abstract class ServerBase : CommunicationBase
     {
+        private object _SyncLock = new object();
         private TcpListener _Listener;
         private List<Session> _SessionList;
 
@@ -21,8 +22,11 @@ namespace Stef.Communication.Base
         {
             get
             {
-                return _SessionList
-                    .ToList();
+                lock (_SyncLock)
+                {
+                    return _SessionList
+                        .ToList();
+                }
             }
         }
 
@@ -50,7 +54,7 @@ namespace Stef.Communication.Base
 
         protected void SendData(byte[] data)
         {
-            foreach (var session in _SessionList.ToList())
+            foreach (var session in SessionList.ToList())
             {
                 SendData(session, data);
             }
@@ -62,12 +66,20 @@ namespace Stef.Communication.Base
 
         protected override void OnConnected(Session session)
         {
-            _SessionList.Add(session);
+            lock (_SyncLock)
+            {
+                _SessionList.Add(session);
+            }
+
             base.OnConnected(session);
         }
         protected override void OnDisconnected(Session session)
         {
-            _SessionList.Remove(session);
+            lock (_SyncLock)
+            {
+                _SessionList.Remove(session);
+            }
+
             base.OnDisconnected(session);
         }
 
@@ -90,7 +102,7 @@ namespace Stef.Communication.Base
         }
         private void CloseClients()
         {
-            foreach (var session in _SessionList.ToList())
+            foreach (var session in SessionList.ToList())
             {
                 OnDisconnected(session);
                 session.Dispose();

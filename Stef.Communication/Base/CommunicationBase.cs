@@ -74,6 +74,8 @@ namespace Stef.Communication.Base
         {
             if (session == null)
                 throw new InvalidOperationException("Session not initialized");
+            if (session.TcpClient == null)
+                throw new InvalidOperationException("TcpClient in Session has been disposed");
 
             var lengthBuffer = BitConverter.GetBytes(data.Length);
 
