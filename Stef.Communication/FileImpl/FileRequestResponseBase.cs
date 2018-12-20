@@ -10,5 +10,7 @@ namespace Stef.Communication.FileImpl
         }
 
         public Guid MessageId { get; set; }
+        public ResponseType ResponseType { get; set; }
+        public string Exception { get; set; }
     }
 }

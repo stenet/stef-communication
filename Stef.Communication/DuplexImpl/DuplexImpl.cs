@@ -15,18 +15,18 @@ namespace Stef.Communication.DuplexImpl
         private Dictionary<Guid, DuplexWaitItem> _WaitDic;
         private Dictionary<string, object> _InstanceDic;
 
-        private List<DuplexMessageHandler> _MessageHandlerList;
+        private List<DuplexHandler> _HandlerList;
 
         public DuplexImpl(CommunicationBase communicationBase)
         {
             _WaitDic = new Dictionary<Guid, DuplexWaitItem>();
             _InstanceDic = new Dictionary<string, object>();
-            _MessageHandlerList = new List<DuplexMessageHandler>();
+            _HandlerList = new List<DuplexHandler>();
 
             _CommunicationBase = communicationBase;
         }
 
-        public void RegisterMessageHandler<T, K>(Predicate<T> predicate, Func<Session, T, K> action)
+        public void RegisterHandler<T, K>(Predicate<T> predicate, Func<Session, T, K> action)
         {
             Func<Session, object, Action<object>, bool> func = (session, obj, responseAction) =>
             {
@@ -43,7 +43,7 @@ namespace Stef.Communication.DuplexImpl
                 return true;
             };
 
-            _MessageHandlerList.Add(new DuplexMessageHandler(func));
+            _HandlerList.Add(new DuplexHandler(func));
         }
 
         public Func<string, Type> MessageTypeResolverFunc { get; set; }
@@ -70,7 +70,7 @@ namespace Stef.Communication.DuplexImpl
                     _WaitDic.Add(waitItem.MessageId, waitItem);
                 }
 
-                AttachCompletionToWaitItem(waitItem, timeout.Value);
+                AttachCompletionToWaitItem(session, waitItem, timeout.Value);
                 _CommunicationBase.SendDataEx(session, bytes);
 
                 return waitItem.CompletionSource.Task;
@@ -81,7 +81,7 @@ namespace Stef.Communication.DuplexImpl
                 return null;
             }
         }
-        private void AttachCompletionToWaitItem<K>(DuplexWaitItem<K> waitItem, TimeSpan timeout)
+        private void AttachCompletionToWaitItem<K>(Session session, DuplexWaitItem<K> waitItem, TimeSpan timeout)
         {
             var cancelTokenSource = new CancellationTokenSource();
 
@@ -110,7 +110,7 @@ namespace Stef.Communication.DuplexImpl
             waitItem.CompletionSource.Task.ContinueWith(t =>
             {
                 var ex = t.Exception;
-                //TODO Handle Exception
+                _CommunicationBase.OnException(session, ex, disconnect: false);
 
                 clear();
             });
@@ -127,10 +127,6 @@ namespace Stef.Communication.DuplexImpl
             else if (received is DuplexResponse response)
             {
                 ResolveResponse(response);
-            }
-            else
-            {
-                //TODO Exception
             }
         }
 
@@ -152,7 +148,7 @@ namespace Stef.Communication.DuplexImpl
                     SendResponse(session, response);
                 };
 
-                var isHandled = _MessageHandlerList
+                var isHandled = _HandlerList
                     .Any(c => c.Handle(session, message, sendResponse));
 
                 if (isHandled)

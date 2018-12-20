@@ -138,12 +138,12 @@ namespace Stef.Communication.Test
         public static void InitDuplexServer()
         {
             var server = new DuplexServer();
-            server.RegisterMessageHandler<CustomEventData, string>((session, e) =>
+            server.RegisterHandler<CustomEventData, string>((session, e) =>
             {
                 Console.WriteLine(string.Concat("Server: ", e.FirstName));
                 return "OK from Server";
             });
-            server.RegisterMessageHandler<string, string>((session, e) =>
+            server.RegisterHandler<string, string>((session, e) =>
             {
                 Console.WriteLine(string.Concat("Server: ", e));
                 return "OK from Server";
@@ -151,12 +151,12 @@ namespace Stef.Communication.Test
             server.Start();
 
             var client = new DuplexClient();
-            client.RegisterMessageHandler<CustomEventData, string>((session, e) =>
+            client.RegisterHandler<CustomEventData, string>((session, e) =>
             {
                 Console.WriteLine(string.Concat("Client: ", e.FirstName));
                 return "OK from Client";
             });
-            client.RegisterMessageHandler<string, string>((session, e) =>
+            client.RegisterHandler<string, string>((session, e) =>
             {
                 Console.WriteLine(string.Concat("Client: ", e));
                 return "OK from Client";

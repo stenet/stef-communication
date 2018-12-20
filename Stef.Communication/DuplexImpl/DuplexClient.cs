@@ -16,40 +16,50 @@ namespace Stef.Communication.DuplexImpl
 
         public TimeSpan ResponseTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
-        public void RegisterMessageHandler<T>(Action<Session, T> action)
+        public void RegisterHandler<T>(Action<Session, T> action)
         {
-            _Impl.RegisterMessageHandler<T, object>(
+            _Impl.RegisterHandler<T, object>(
                 obj => obj is T,
                 (session, v) => { action(session, v); return null; });
         }
-        public void RegisterMessageHandler<T, K>(Func<Session, T, K> action)
+        public void RegisterHandler<T, K>(Func<Session, T, K> action)
         {
-            _Impl.RegisterMessageHandler(
+            _Impl.RegisterHandler(
                 obj => obj is T,
                 action);
         }
-        public void RegisterMessageHandler<T>(Predicate<T> predicate, Action<Session, T> action)
+        public void RegisterHandler<T>(Predicate<T> predicate, Action<Session, T> action)
         {
-            _Impl.RegisterMessageHandler<T, object>(
+            _Impl.RegisterHandler<T, object>(
                 predicate,
                 (session, v) => { action(session, v); return null; });
         }
-        public void RegisterMessageHandler<T, K>(Predicate<T> predicate, Func<Session, T, K> action)
+        public void RegisterHandler<T, K>(Predicate<T> predicate, Func<Session, T, K> action)
         {
-            _Impl.RegisterMessageHandler(
+            _Impl.RegisterHandler(
                 predicate,
                 action);
         }
 
         public void Send<T>(T message, TimeSpan? timeout = null)
         {
-            SendAsync<T>(message, timeout: timeout)
-                .Wait();
+            var task = SendAsync<T>(message, timeout: timeout);
+
+            task.Wait();
+
+            if (task.Exception != null)
+                throw task.Exception;
         }
         public K Send<T, K>(T message, TimeSpan? timeout = null)
         {
-            return SendAsync<T, K>(message, timeout: timeout)
-                .Result;
+            var task = SendAsync<T, K>(message, timeout: timeout);
+
+            task.Wait();
+
+            if (task.Exception != null)
+                throw task.Exception;
+
+            return task.Result;
         }
         public void SendAndForget<T>(T message, TimeSpan? timeout = null)
         {

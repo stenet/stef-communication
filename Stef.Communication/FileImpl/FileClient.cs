@@ -21,10 +21,14 @@ namespace Stef.Communication.FileImpl
 
         public void Init(object data, TimeSpan? timeout = null)
         {
-            InitAsync(
+            var task = InitAsync(
                 data,
-                timeout: timeout)
-                .Wait();
+                timeout: timeout);
+
+            task.Wait();
+
+            if (task.Exception != null)
+                throw task.Exception;
         }
         public Task InitAsync(object data, TimeSpan? timeout = null)
         {
@@ -53,10 +57,14 @@ namespace Stef.Communication.FileImpl
 
         public void DeleteFile(string key, TimeSpan? timeout = null)
         {
-            DeleteFileAsync(
+            var task = DeleteFileAsync(
                 key,
-                timeout: timeout)
-                .Wait();
+                timeout: timeout);
+
+            task.Wait();
+
+            if (task.Exception != null)
+                throw task.Exception;
         }
         public Task DeleteFileAsync(string key, TimeSpan? timeout = null)
         {
@@ -85,10 +93,16 @@ namespace Stef.Communication.FileImpl
 
         public byte[] GetFile(string key, TimeSpan? timeout = null)
         {
-            return GetFileAsync(
+            var task = GetFileAsync(
                 key,
-                timeout: timeout)
-                .Result;
+                timeout: timeout);
+
+            task.Wait();
+
+            if (task.Exception != null)
+                throw task.Exception;
+
+            return task.Result;
         }
         public Task<byte[]> GetFileAsync(string key, TimeSpan? timeout = null)
         {
@@ -123,6 +137,9 @@ namespace Stef.Communication.FileImpl
                 timeout: timeout);
 
             task.Wait();
+
+            if (task.Exception != null)
+                throw task.Exception;
         }
         public Task SaveFileAsync(string key, byte[] data, TimeSpan? timeout = null)
         {
@@ -185,7 +202,7 @@ namespace Stef.Communication.FileImpl
             waitItem.CompletionSource.Task.ContinueWith(t =>
             {
                 var ex = t.Exception;
-                //TODO Handle Exception
+                OnException(Session, ex, disconnect: false);
 
                 clear();
             });
@@ -201,7 +218,11 @@ namespace Stef.Communication.FileImpl
                     return;
             }
 
-            if (response is FileEvalResponse fileEvalResponse)
+            if (response.ResponseType == ResponseType.Exception)
+            {
+                waitItem.SetException(new ApplicationException(response.Exception));
+            }
+            else if (response is FileEvalResponse fileEvalResponse)
             {
                 waitItem.SetResult(fileEvalResponse.Data);
             }
@@ -216,10 +237,6 @@ namespace Stef.Communication.FileImpl
             else if (response is FileInitResponse fileInitResponse)
             {
                 waitItem.SetResult(null);
-            }
-            else
-            {
-                //TODO Exception
             }
         }
     }

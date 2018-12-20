@@ -44,21 +44,27 @@ namespace Stef.Communication.FileImpl
             {
                 InitAndSend(session, fileInitRequest);
             }
-            else
-            {
-                //TODO Exception
-            }
         }
         private void EvalFileAndSend(Session session, FileEvalRequest request)
         {
             var evalFileEventArgs = new EvalFileEventArgs(request.Key);
-            EvalFile?.Invoke(this, evalFileEventArgs);
-
             var response = new FileEvalResponse()
             {
                 MessageId = request.MessageId,
-                Data = evalFileEventArgs.Data
+                ResponseType = ResponseType.OK
             };
+
+            try
+            {
+                EvalFile?.Invoke(this, evalFileEventArgs);
+                response.Data = evalFileEventArgs.Data;
+            }
+            catch (Exception ex)
+            {
+                OnException(session, ex, disconnect: false);
+                response.ResponseType = ResponseType.Exception;
+                response.Exception = ex.Message;
+            }
 
             SendData(
                 session,
@@ -66,14 +72,25 @@ namespace Stef.Communication.FileImpl
         }
         private void SaveFileAndSend(Session session, FileSaveRequest request)
         {
-            SaveFile?.Invoke(
-                this,
-                new SaveFileEventArgs(request.Key, request.Data));
-
+            var saveFileEventArgs = new SaveFileEventArgs(request.Key, request.Data);
             var response = new FileSaveResponse()
             {
-                MessageId = request.MessageId
+                MessageId = request.MessageId,
+                ResponseType = ResponseType.OK
             };
+
+            try
+            {
+                SaveFile?.Invoke(
+                    this,
+                    saveFileEventArgs);
+            }
+            catch (Exception ex)
+            {
+                OnException(session, ex, disconnect: false);
+                response.ResponseType = ResponseType.Exception;
+                response.Exception = ex.Message;
+            }
 
             SendData(
                 session,
@@ -81,14 +98,26 @@ namespace Stef.Communication.FileImpl
         }
         private void DeleteFileAndSend(Session session, FileDeleteRequest request)
         {
-            DeleteFile?.Invoke(
-                this,
-                new DeleteFileEventArgs(request.Key));
+            var deleteFileEventArgs = new DeleteFileEventArgs(request.Key);
 
             var response = new FileDeleteResponse()
             {
-                MessageId = request.MessageId
+                MessageId = request.MessageId,
+                ResponseType = ResponseType.OK
             };
+
+            try
+            {
+                DeleteFile?.Invoke(
+                    this,
+                    deleteFileEventArgs);
+            }
+            catch (Exception ex)
+            {
+                OnException(session, ex, disconnect: false);
+                response.ResponseType = ResponseType.Exception;
+                response.Exception = ex.Message;
+            }
 
             SendData(
                 session,
@@ -96,14 +125,25 @@ namespace Stef.Communication.FileImpl
         }
         private void InitAndSend(Session session, FileInitRequest request)
         {
-            Init?.Invoke(
-                this,
-                new InitEventArgs(request.Data));
-
+            var initEventArgs = new InitEventArgs(request.Data);
             var response = new FileInitResponse()
             {
-                MessageId = request.MessageId
+                MessageId = request.MessageId,
+                ResponseType = ResponseType.OK
             };
+
+            try
+            {
+                Init?.Invoke(
+                    this,
+                    initEventArgs);
+            }
+            catch (Exception ex)
+            {
+                OnException(session, ex, disconnect: false);
+                response.ResponseType = ResponseType.Exception;
+                response.Exception = ex.Message;
+            }
 
             SendData(
                 session,
