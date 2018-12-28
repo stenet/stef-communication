@@ -27,7 +27,12 @@ namespace Stef.Communication.Base
         public void Connect(bool autoReconnectOnError = false)
         {
             if (Session != null)
-                throw new InvalidOperationException("Session already initialized");
+            {
+                OnException(
+                    Session,
+                    new InvalidOperationException("Session already initialized"),
+                    disconnect: false);
+            }
 
             _AutoReconnectOnError = autoReconnectOnError;
 

@@ -202,7 +202,8 @@ namespace Stef.Communication.FileImpl
             waitItem.CompletionSource.Task.ContinueWith(t =>
             {
                 var ex = t.Exception;
-                OnException(Session, ex, disconnect: false);
+                if (ex != null)
+                    OnException(Session, ex, disconnect: false);
 
                 clear();
             });

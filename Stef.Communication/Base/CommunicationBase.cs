@@ -13,6 +13,7 @@ namespace Stef.Communication.Base
         private const int BUFFER_LENGTH = 1024;
         private object _SendLock = new object();
         private object _ExceptionLock = new object();
+        private int _ExceptionCounter = 0;
 
         public CommunicationBase(string ip = null, int? port = null)
         {
@@ -74,6 +75,7 @@ namespace Stef.Communication.Base
         {
             if (session == null)
                 throw new InvalidOperationException("Session not initialized");
+
             if (session.TcpClient == null)
                 throw new InvalidOperationException("TcpClient in Session has been disposed");
 
@@ -97,7 +99,6 @@ namespace Stef.Communication.Base
             catch (IOException ex)
             {
                 OnException(session, ex);
-                throw;
             }
             catch (Exception)
             {
@@ -118,7 +119,17 @@ namespace Stef.Communication.Base
         }
         protected internal virtual void OnException(Session session, Exception exception, bool disconnect = true)
         {
-            Exception?.Invoke(this, new ExceptionEventArgs(exception));
+            if (BeginException())
+            {
+                try
+                {
+                    Exception?.Invoke(this, new ExceptionEventArgs(exception));
+                }
+                catch (Exception)
+                {
+                    EndException();
+                }
+            }
 
             if (!disconnect)
                 return;
@@ -134,6 +145,25 @@ namespace Stef.Communication.Base
         protected virtual void OnDataReceived(Session session, byte[] data)
         {
             DataReceived?.Invoke(this, new DataReceivedEventArgs(session, data));
+        }
+
+        private bool BeginException()
+        {
+            lock (_ExceptionLock)
+            {
+                if (_ExceptionCounter > 0)
+                    return false;
+
+                _ExceptionCounter++;
+                return true;
+            }
+        }
+        private void EndException()
+        {
+            lock (_ExceptionLock)
+            {
+                _ExceptionCounter--;
+            }
         }
 
         private async void InitializeReader(Session session)
@@ -206,6 +236,10 @@ namespace Stef.Communication.Base
                     length = -1;
                     skipReadStream = true;
                 }
+            }
+            catch (ObjectDisposedException) //= shutdown
+            {
+                OnDisconnected(session);
             }
             catch (IOException ex)
             {

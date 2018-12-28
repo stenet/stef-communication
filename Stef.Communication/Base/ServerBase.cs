@@ -100,7 +100,7 @@ namespace Stef.Communication.Base
 
                     OnConnected(session);
                 }
-                catch (ObjectDisposedException) //= Server shutdown
+                catch (ObjectDisposedException) //= shutdown
                 {
                     return;
                 }
