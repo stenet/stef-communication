@@ -219,14 +219,7 @@ namespace Stef.Communication.Base
                     buffer = new byte[length];
                     memoryStream.Read(buffer, 0, length);
 
-                    try
-                    {
-                        OnDataReceived(session, buffer);
-                    }
-                    catch (Exception ex)
-                    {
-                        OnException(session, ex, disconnect: false);
-                    }
+                    CallDataReceived(session, buffer);
 
                     buffer = new byte[memoryStream.Length - 4 - length];
                     memoryStream.Read(buffer, 0, buffer.Length);
@@ -253,6 +246,21 @@ namespace Stef.Communication.Base
             {
                 memoryStream.Dispose();
             }
+        }
+
+        private void CallDataReceived(Session session, byte[] buffer)
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    OnDataReceived(session, buffer);
+                }
+                catch (Exception ex)
+                {
+                    OnException(session, ex, disconnect: false);
+                }
+            });            
         }
     }
 }

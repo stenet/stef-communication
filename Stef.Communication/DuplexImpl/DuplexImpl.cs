@@ -46,8 +46,6 @@ namespace Stef.Communication.DuplexImpl
             _HandlerList.Add(new DuplexHandler(func));
         }
 
-        public Func<string, Type> MessageTypeResolverFunc { get; set; }
-
         public Task<K> Send<T, K>(Session session, T message, TimeSpan? timeout = null, bool wait = true)
         {
             if (timeout == null)

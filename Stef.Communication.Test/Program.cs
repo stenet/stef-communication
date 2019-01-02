@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using Stef.Communication.ByteImpl;
@@ -16,14 +18,14 @@ namespace Stef.Communication.Test
         private static void Main(string[] args)
         {
             //InitByteServer();
-            InitEventServer();
-            //InitDuplexServer();
+            //InitEventServer();
+            InitDuplexServer();
             //InitFileServer();
         }
 
         public static void InitByteServer()
         {
-            var server = new ByteServer();
+            var server = new ByteServer(GetIpAddress());
 
             server.Connected += (s, a) =>
             {
@@ -38,7 +40,7 @@ namespace Stef.Communication.Test
                 Console.WriteLine(string.Concat("CLIENT: ", Encoding.UTF8.GetString(a.Data)));
             };
 
-            var client = new ByteClient();
+            var client = new ByteClient(GetIpAddress());
             client.Connected += (s, a) =>
             {
                 Console.WriteLine("CLIENT: Connected");
@@ -101,10 +103,10 @@ namespace Stef.Communication.Test
         }
         public static void InitEventServer()
         {
-            var eventServer = new EventServer();
+            var eventServer = new EventServer(GetIpAddress());
             eventServer.Start();
 
-            var eventClient1 = new EventClient();
+            var eventClient1 = new EventClient(GetIpAddress());
             eventClient1.AddToGroup("Task", "Random");
             eventClient1.Connect();
             eventClient1.PublishEvent += (s, a) =>
@@ -112,7 +114,7 @@ namespace Stef.Communication.Test
                 Console.WriteLine("CLIENT1: " + a.Arguments.ToString());
             };
 
-            var eventClient2 = new EventClient();
+            var eventClient2 = new EventClient(GetIpAddress());
             eventClient2.Connect();
             eventClient2.AddToGroup("Task");
             eventClient2.PublishEvent += (s, a) =>
@@ -120,7 +122,7 @@ namespace Stef.Communication.Test
                 Console.WriteLine("CLIENT2: " + a.Arguments.ToString());
             };
 
-            var eventClient3 = new EventClient();
+            var eventClient3 = new EventClient(GetIpAddress());
             eventClient3.Connect();
             eventClient3.AddToGroup("Task", "Random");
             eventClient3.PublishEvent += (s, a) =>
@@ -157,7 +159,7 @@ namespace Stef.Communication.Test
         }
         public static void InitDuplexServer()
         {
-            var server = new DuplexServer();
+            var server = new DuplexServer(GetIpAddress());
             server.RegisterHandler<CustomEventData, string>((session, e) =>
             {
                 Console.WriteLine(string.Concat("Server: ", e.FirstName));
@@ -170,7 +172,7 @@ namespace Stef.Communication.Test
             });
             server.Start();
 
-            var client = new DuplexClient();
+            var client = new DuplexClient(GetIpAddress());
             client.RegisterHandler<CustomEventData, string>((session, e) =>
             {
                 Console.WriteLine(string.Concat("Client: ", e.FirstName));
@@ -233,6 +235,20 @@ namespace Stef.Communication.Test
 
             ExecuteMultipleActions();
             Console.ReadLine();
+        }
+        private static string GetIpAddress()
+        {
+            var host = Dns.GetHostEntry(Dns.GetHostName());
+
+            foreach (var ip in host.AddressList)
+            {
+                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    return ip.ToString();
+                }
+            }
+
+            return string.Empty;
         }
         private static void ExecuteMultipleActions()
         {
