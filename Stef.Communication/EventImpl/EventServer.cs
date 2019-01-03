@@ -89,7 +89,7 @@ namespace Stef.Communication.EventImpl
             }
 
             sessionList
-                .ForEach(c => SendData(c, data));
+                .ForEach(c => SendData(c, data, throwInvalidSessionException: false));
         }
 
         private List<Session> GetAllSessions()

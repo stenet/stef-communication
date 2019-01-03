@@ -10,9 +10,9 @@ namespace Stef.Communication.ByteImpl
         {
         }
 
-        public new void SendData(byte[] data)
+        public new void SendData(byte[] data, bool throwInvalidSessionException = true)
         {
-            base.SendData(data);
+            base.SendData(data, throwInvalidSessionException);
         }
     }
 }

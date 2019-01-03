@@ -47,7 +47,7 @@ namespace Stef.Communication.EventImpl
             };
 
             var bytes = SerializeManager.Current.Serialize(data);
-            SendData(bytes);
+            SendData(bytes, throwInvalidSessionException: false);
         }
         public void SendEventToOthers<T>(T args)
             where T : class
@@ -59,7 +59,7 @@ namespace Stef.Communication.EventImpl
             };
 
             var bytes = SerializeManager.Current.Serialize(data);
-            SendData(bytes);
+            SendData(bytes, throwInvalidSessionException: false);
         }
         public void SendEventToAllInGroup<T>(T args, string groupName)
             where T : class
@@ -75,7 +75,7 @@ namespace Stef.Communication.EventImpl
             };
 
             var bytes = SerializeManager.Current.Serialize(data);
-            SendData(bytes);
+            SendData(bytes, throwInvalidSessionException: false);
         }
         public void SendEventToRandomInGroup<T>(T args, string groupName)
             where T : class
@@ -91,7 +91,7 @@ namespace Stef.Communication.EventImpl
             };
 
             var bytes = SerializeManager.Current.Serialize(data);
-            SendData(bytes);
+            SendData(bytes, throwInvalidSessionException: false);
         }
 
         protected override void OnConnected(Session session)

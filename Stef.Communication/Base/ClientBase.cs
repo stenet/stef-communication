@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using Stef.Communication.Exceptions;
 
 namespace Stef.Communication.Base
 {
@@ -13,7 +14,7 @@ namespace Stef.Communication.Base
             : base(ip, port)
         {
         }
-        
+
         public bool IsConnected
         {
             get
@@ -40,7 +41,7 @@ namespace Stef.Communication.Base
             {
                 var tcpClient = new TcpClient(IP, Port);
                 Session = new Session(tcpClient);
-                
+
                 OnConnected(Session);
             }
             catch (Exception)
@@ -65,9 +66,17 @@ namespace Stef.Communication.Base
             OnDisconnected(Session);
         }
 
-        protected void SendData(byte[] data)
+        protected void SendData(byte[] data, bool throwInvalidSessionException = true)
         {
-            SendDataEx(Session, data);
+            try
+            {
+                SendDataInternal(Session, data);
+            }
+            catch (InvalidSessionException)
+            {
+                if (throwInvalidSessionException)
+                    throw;
+            }
         }
         protected override void OnDisconnected(Session session)
         {
@@ -77,7 +86,7 @@ namespace Stef.Communication.Base
             if (_AutoReconnectOnError)
                 TryReconnect();
         }
-        
+
         private async void TryReconnect()
         {
             if (Session != null)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using Stef.Communication.Exceptions;
 
 namespace Stef.Communication.Base
 {
@@ -57,16 +58,24 @@ namespace Stef.Communication.Base
             return new Session(client);
         }
 
-        protected void SendData(byte[] data)
+        protected void SendData(byte[] data, bool throwInvalidSessionException = true)
         {
             foreach (var session in SessionList.ToList())
             {
-                SendData(session, data);
+                SendData(session, data, throwInvalidSessionException);
             }
         }
-        protected void SendData(Session session, byte[] data)
+        protected void SendData(Session session, byte[] data, bool throwInvalidSessionException = true)
         {
-            SendDataEx(session, data);
+            try
+            {
+                SendDataInternal(session, data);
+            }
+            catch (InvalidSessionException)
+            {
+                if (throwInvalidSessionException)
+                    throw;
+            }
         }
 
         protected override void OnConnected(Session session)

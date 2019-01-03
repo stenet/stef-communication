@@ -69,13 +69,13 @@ namespace Stef.Communication.DuplexImpl
                 }
 
                 AttachCompletionToWaitItem(session, waitItem, timeout.Value);
-                _CommunicationBase.SendDataEx(session, bytes);
+                _CommunicationBase.SendDataInternal(session, bytes);
 
                 return waitItem.CompletionSource.Task;
             }
             else
             {
-                _CommunicationBase.SendDataEx(session, bytes);
+                _CommunicationBase.SendDataInternal(session, bytes);
                 return null;
             }
         }
@@ -193,7 +193,7 @@ namespace Stef.Communication.DuplexImpl
         private void SendResponse(Session session, DuplexResponse response)
         {
             var bytes = SerializeManager.Current.Serialize(response);
-            _CommunicationBase.SendDataEx(session, bytes);
+            _CommunicationBase.SendDataInternal(session, bytes);
         }
 
         private void ResolveResponse(DuplexResponse response)

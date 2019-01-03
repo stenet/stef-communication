@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Stef.Communication.Exceptions;
+using System;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -71,13 +72,13 @@ namespace Stef.Communication.Base
             });            
         }
 
-        protected internal void SendDataEx(Session session, byte[] data)
+        protected internal void SendDataInternal(Session session, byte[] data)
         {
             if (session == null)
-                throw new InvalidOperationException("Session not initialized");
+                throw new InvalidSessionException("Session not initialized");
 
             if (session.TcpClient == null)
-                throw new InvalidOperationException("TcpClient in Session has been disposed");
+                throw new InvalidSessionException("TcpClient in Session has been disposed");
 
             var lengthBuffer = BitConverter.GetBytes(data.Length);
 
@@ -98,7 +99,17 @@ namespace Stef.Communication.Base
             }
             catch (IOException ex)
             {
-                OnException(session, ex);
+                if (session.TcpClient != null)
+                    OnDisconnected(session);
+
+                throw new InvalidSessionException(ex.Message, ex);
+            }
+            catch (ObjectDisposedException ex)
+            {
+                if (session.TcpClient != null)
+                    OnDisconnected(session);
+
+                throw new InvalidSessionException(ex.Message, ex);
             }
             catch (Exception)
             {
@@ -260,7 +271,7 @@ namespace Stef.Communication.Base
                 {
                     OnException(session, ex, disconnect: false);
                 }
-            });            
+            });
         }
     }
 }
