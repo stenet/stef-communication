@@ -107,10 +107,6 @@ namespace Stef.Communication.DuplexImpl
 
             waitItem.CompletionSource.Task.ContinueWith(t =>
             {
-                var ex = t.Exception;
-                if (ex != null)
-                    _CommunicationBase.OnException(session, ex, disconnect: false);
-
                 clear();
             });
         }

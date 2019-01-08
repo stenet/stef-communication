@@ -2,7 +2,7 @@
 <Root Type="DevExpress.CodeRush.Foundation.Navigation.QuickFileNav.SolutionFileInfosContainer">
   <Options Language="Neutral">
     <Items>
-      <Item Id="{223b5ad7-fe50-4810-8635-6bf7599561dc}">
+      <Item Id="{96ead2ee-5fa2-43da-ba7c-6ecef48feddb}">
         <Filename>EventServer.cs</Filename>
         <FilePath>f:\git\stef-communication\stef.communication\eventimpl\eventserver.cs</FilePath>
         <Folders>
