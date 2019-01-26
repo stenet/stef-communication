@@ -45,28 +45,35 @@ namespace Stef.Communication.Base
             {
                 var isDeadCount = 0;
 
-                while (session.TcpClient != null)
+                while (session.IsConnected)
                 {
-                    Thread.Sleep(CheckAliveTimespan);
+                    try
+                    {
+                        Thread.Sleep(CheckAliveTimespan);
 
-                    if (session.TcpClient == null)
+                        if (!session.IsConnected)
+                            break;
+
+                        var socket = session.TcpClient.Client;
+                        var isAlive = !((socket.Poll(1000, SelectMode.SelectRead) && (socket.Available == 0)) || !socket.Connected);
+
+                        isDeadCount = isAlive
+                            ? 0
+                            : isDeadCount + 1;
+
+                        if (isAlive)
+                            continue;
+
+                        if (isDeadCount < 4)
+                            continue;
+
+                        OnException(session, new TimeoutException());
                         break;
-
-                    var socket = session.TcpClient.Client;
-                    var isAlive = !((socket.Poll(1000, SelectMode.SelectRead) && (socket.Available == 0)) || !socket.Connected);
-
-                    isDeadCount = isAlive
-                        ? 0
-                        : isDeadCount + 1;
-
-                    if (isAlive)
-                        continue;
-
-                    if (isDeadCount < 4)
-                        continue;
-
-                    OnException(session, new TimeoutException());
-                    break;
+                    }
+                    catch (Exception ex)
+                    {
+                        OnException(session, ex);
+                    }
                 }
             });            
         }
@@ -76,7 +83,7 @@ namespace Stef.Communication.Base
             if (session == null)
                 throw new InvalidSessionException("Session not initialized");
 
-            if (session.TcpClient == null)
+            if (!session.IsConnected)
                 throw new InvalidSessionException("TcpClient in Session has been disposed");
 
             var lengthBuffer = BitConverter.GetBytes(data.Length);
@@ -98,14 +105,14 @@ namespace Stef.Communication.Base
             }
             catch (IOException ex)
             {
-                if (session.TcpClient != null)
+                if (session.IsConnected)
                     OnDisconnected(session);
 
                 throw new InvalidSessionException(ex.Message, ex);
             }
             catch (ObjectDisposedException ex)
             {
-                if (session.TcpClient != null)
+                if (session.IsConnected)
                     OnDisconnected(session);
 
                 throw new InvalidSessionException(ex.Message, ex);
@@ -137,7 +144,7 @@ namespace Stef.Communication.Base
 
             lock (_ExceptionLock)
             {
-                if (session.TcpClient == null)
+                if (!session.IsConnected)
                     return;
 
                 OnDisconnected(session);
@@ -157,7 +164,7 @@ namespace Stef.Communication.Base
 
             try
             {
-                while (session.TcpClient != null)
+                while (session.IsConnected)
                 {
                     var buffer = new byte[BUFFER_LENGTH];
 

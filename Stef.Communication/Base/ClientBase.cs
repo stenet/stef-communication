@@ -9,6 +9,9 @@ namespace Stef.Communication.Base
     public abstract class ClientBase : CommunicationBase
     {
         private bool _AutoReconnectOnError;
+        private object _TryReconnectLock = new object();
+        private bool _IsTryingReconnect;
+        private object _CreateSessionLock = new object();
 
         public ClientBase(string ip = null, int? port = null)
             : base(ip, port)
@@ -20,7 +23,7 @@ namespace Stef.Communication.Base
             get
             {
                 return Session != null
-                    && Session.TcpClient != null;
+                    && Session.IsConnected;
             }
         }
         public Session Session { get; private set; }
@@ -35,7 +38,21 @@ namespace Stef.Communication.Base
             try
             {
                 var tcpClient = new TcpClient(IP, Port);
-                Session = new Session(tcpClient);
+
+                lock (_CreateSessionLock)
+                {
+                    if (Session != null)
+                    {
+                        try
+                        {
+                            tcpClient.Dispose();
+                            return;
+                        }
+                        catch {}
+                    }
+
+                    Session = new Session(tcpClient);
+                }
 
                 OnConnected(Session);
             }
@@ -87,10 +104,23 @@ namespace Stef.Communication.Base
             if (Session != null)
                 return;
 
+            lock (_TryReconnectLock)
+            {
+                if (_IsTryingReconnect)
+                    return;
+
+                _IsTryingReconnect = true;
+            }
+
             await Task.Delay(750);
 
             try
             {
+                lock (_TryReconnectLock)
+                {
+                    _IsTryingReconnect = false;
+                }
+
                 Connect(true);
             }
             catch (Exception)

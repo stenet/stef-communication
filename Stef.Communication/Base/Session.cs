@@ -16,9 +16,17 @@ namespace Stef.Communication.Base
         public TcpClient TcpClient { get; private set; }
         public Stream Stream { get; private set; }
 
+        public bool IsConnected
+        {
+            get
+            {
+                return TcpClient != null;
+            }
+        }
+
         public void Dispose()
         {
-            if (TcpClient == null)
+            if (!IsConnected)
                 return;
 
             TcpClient.Close();
